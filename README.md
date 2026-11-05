@@ -20,6 +20,10 @@ The host runs one Windows `.exe`, picks videos, and everyone watches in their br
 
 Friends don't need a new build for most changes: the player page is served by the host.
 
+## Download
+Prebuilt Windows executables are in [`dist/`](dist/): `WatchParty.exe` (host, ~73 MB) and `WatchParty-Lite.exe` (friends, ~7 MB).
+Note for maintainers: committing a rebuilt `.exe` adds its full size to the repo history each time; GitHub Releases are a better home if this gets updated often.
+
 ## Build
 Needs Go 1.21+.
 
