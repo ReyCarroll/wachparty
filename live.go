@@ -90,11 +90,13 @@ func (l *Live) startJobLocked(n int) error {
 	l.jobSeq++
 
 	var args []string
-	args = append(args, "-hide_banner", "-y")
+	// -readrate 4: never encode faster than 4x playback speed (no point racing ahead, and it keeps the host PC's CPU free)
+	// -threads: leave some cores for the host's own browser/audio
+	args = append(args, "-hide_banner", "-y", "-readrate", "4", "-threads", encThreads())
 	if n > 0 {
 		args = append(args, "-ss", strconv.Itoa(n*segLen)) // accurate seek: decodes from the previous keyframe up to here
 	}
-	args = append(args, "-i", l.path, "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn",
+	args = append(args, "-i", l.path, "-threads", encThreads(), "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn",
 		"-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-pix_fmt", "yuv420p",
 		"-sc_threshold", "0", "-force_key_frames", fmt.Sprintf("expr:gte(t,n_forced*%d)", segLen),
 		"-c:a", "aac", "-b:a", "160k", "-ac", "2")

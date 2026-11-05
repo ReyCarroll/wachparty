@@ -141,6 +141,9 @@ func makePlan(p Probe, ext string) Plan {
 	return pl
 }
 
+// encThreads leaves a quarter of the CPU free for the host's own playback.
+func encThreads() string { return strconv.Itoa(max(1, runtime.NumCPU()*3/4)) }
+
 type Conv struct {
 	Running bool
 	Percent float64
@@ -218,7 +221,7 @@ func runConvert(ctx context.Context, it Item) {
 	} else {
 		f.Close()
 	}
-	args := []string{"-y", "-hide_banner", "-i", it.Path, "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn"}
+	args := []string{"-y", "-hide_banner", "-threads", encThreads(), "-i", it.Path, "-threads", encThreads(), "-map", "0:v:0", "-map", "0:a:0?", "-sn", "-dn"}
 	if it.VCopy {
 		args = append(args, "-c:v", "copy")
 	} else {
