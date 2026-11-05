@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watch Party</title>
+<style>
+:root{--bg:#14161a;--card:#1d2026;--fg:#e8eaed;--mut:#9aa0a6;--acc:#7c9cff;--ok:#4cc38a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Segoe UI,sans-serif;display:grid;place-items:start center;padding:32px 16px}
+main{width:100%;max-width:560px;display:grid;gap:16px}
+h1{margin:0 0 4px;font-size:26px}
+.card{background:var(--card);border-radius:12px;padding:20px}
+h2{margin:0 0 10px;font-size:18px}
+button,.btn{background:var(--acc);color:#0b1020;border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+input{background:#12141a;color:var(--fg);border:1px solid #333a45;border-radius:8px;padding:10px;font:inherit;width:100%;margin-bottom:10px}
+.mut{color:var(--mut);font-size:14px}code{background:#12141a;padding:2px 8px;border-radius:6px;font-size:17px;user-select:all}
+#err{color:#ff8a80}
+.warnbox{background:#2b2414;border:1px solid #f2b84b;border-radius:10px;padding:12px;margin:12px 0;display:grid;gap:8px}
+button.alt{background:#2f3540;color:var(--fg)}
+#addrs{display:grid;gap:14px;margin-bottom:14px}.addr{display:flex;gap:14px;align-items:center;flex-wrap:wrap}.addr img{width:120px;height:120px;border-radius:8px;background:#fff;padding:6px;image-rendering:pixelated}.addr small{display:block;color:var(--mut)}
+[hidden]{display:none!important}
+#share details{margin:10px 0 14px;background:#12141a;border-radius:10px;padding:10px 14px}#share summary{cursor:pointer;font-weight:600}#share ol{margin:8px 0 0 18px;padding:0;display:grid;gap:8px}
+#apps details{margin:8px 0;background:#12141a;border-radius:10px;padding:10px 14px}#apps summary{cursor:pointer;font-weight:600}
+.qrrow{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0}.qrrow figure{margin:0;text-align:center;font-size:13px;color:var(--mut)}.qrrow img{width:130px;height:130px;background:#fff;padding:6px;border-radius:8px;display:block;margin-bottom:4px;image-rendering:pixelated}
+#apps figure a{display:block;color:var(--acc);text-decoration:underline}
+#apps ol{margin:6px 0 0 18px;padding:0}#apps a{color:var(--acc)}pre{background:#0c0e12;padding:8px 10px;border-radius:8px;overflow:auto;margin:6px 0}
+#pl{list-style:none;margin:10px 0;padding:2px 4px 2px 2px;display:grid;gap:6px;max-height:420px;overflow:auto}#pl li.grp{background:transparent;padding:4px 2px;font-weight:600;color:var(--mut)}#pl li.grp .nm small{font-weight:400}#pl li{display:flex;gap:8px;align-items:center;background:#12141a;border-radius:8px;padding:6px 10px}#pl li.cur{outline:2px solid var(--acc)}#pl .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}#pl .b{font-size:12px;color:#f2b84b}#pl button{padding:4px 10px;font-size:13px}
+</style><script src="/qrcode.js"></script><script src="/pl.js"></script></head><body><main>
+<div><h1>Watch Party</h1><div class="mut">Synced video over Hamachi</div></div>
+
+<section class="card" id="host">
+  <h2>Host: share a video</h2>
+  <p id="now" class="mut">No video selected yet.</p>
+  <button id="pick">Add videos…</button>
+  <button id="pickdir">Add folder…</button>
+  <button id="addsub" class="alt" hidden>Add subtitle file…</button>
+  <button id="clear" class="alt" hidden>Clear list</button>
+  <p class="mut"><b>Add videos…</b> takes several files at once (Ctrl/Shift-click). <b>Add folder…</b> takes a whole show: every video inside it, including season subfolders, with the folders kept. You can also drag files or folders onto the exe. Everyone connected can pick what plays.</p>
+  <ol id="pl"></ol>
+  <p id="subs" class="mut"></p>
+  <p id="err"></p>
+  <div id="prog" hidden class="warnbox"><div id="ptxt"></div><progress id="pbar" max="100" value="0" style="width:100%"></progress><button id="cstop" class="alt">Stop</button></div>
+  <div id="share" hidden>
+    <p>Friends join using the address for the network they're on. All of these work at the same time:</p>
+    <div id="addrs"></div>
+    <p id="hamawarn" class="mut" hidden>Hamachi address not found - connect Hamachi first if your PC friends use it. (Everything else listed above works at the same time.)</p>
+    <details id="fixwifi"><summary>Phone can't connect on your Wi-Fi (only works over a VPN)?</summary>
+      <ol>
+        <li><b>Use the right address:</b> scan the code marked "use this for phones on your Wi-Fi". The phone must be on the same Wi-Fi as this PC (not mobile data, not a guest network).</li>
+        <li><b>Windows Firewall:</b> it often allows the app on VPN networks but not on your Wi-Fi. <button id="fwfix" class="alt">Allow on all networks (asks for admin)</button><div id="fwmsg" class="mut"></div></li>
+        <li><b>Router:</b> turn off "AP isolation" / "client isolation" (or use the main Wi-Fi, not the guest one). That setting stops phones and PCs on the same Wi-Fi from seeing each other, while VPNs still work.</li>
+        <li><b>iPhone:</b> Settings &rarr; Privacy &amp; Security &rarr; Local Network &rarr; turn on Safari (or Chrome). Without it, iPhones block local addresses.</li>
+        <li><b>Android:</b> turn off any other VPN app, and "Smart network switch" / "Wi-Fi assist" / "Adaptive Wi-Fi" (they can send the phone's traffic over mobile data when the Wi-Fi has no internet).</li>
+      </ol>
+    </details>
+    <a class="btn" id="openplayer" href="/watch.html">Open player</a>
+    <p class="mut" id="viewers"></p>
+  </div>
+</section>
+
+<section class="card" id="join">
+  <h2>Join a friend</h2>
+  <input id="addr" placeholder="Host's address, e.g. 25.12.34.56:8765 (Hamachi / Tailscale / LAN)" autocomplete="off">
+  <button id="go">Join</button>
+  <p class="mut">If it won't connect: the host must allow the app through Windows Firewall (tick <b>Public</b> too, Hamachi networks are often "public").</p>
+</section>
+
+<section class="card" id="apps">
+  <h2>Get the apps for phones (and PCs)</h2>
+  <p class="mut">Phones can't use Hamachi, so use Tailscale or ZeroTier for them. Pick one: everyone (host PC and phones) installs the <b>same</b> one and joins the same network. Hamachi friends on PCs keep working at the same time.</p>
+  <details open><summary>Tailscale (easiest)</summary>
+    <div class="qrrow" data-qr='[["Android","https://play.google.com/store/apps/details?id=com.tailscale.ipn"],["iPhone / iPad","https://apps.apple.com/app/tailscale/id1470499037"],["PC / Mac / all","https://tailscale.com/download"]]'></div>
+    <p class="mut">Link not working? Search <b>Tailscale</b> in the Play Store / App Store (by Tailscale Inc.), or use the official install guides: <a href="https://tailscale.com/docs/install/android" target="_blank" rel="noopener">Android</a> (also has a direct APK if you have no Play Store), <a href="https://tailscale.com/docs/install/ios" target="_blank" rel="noopener">iPhone</a>, <a href="https://tailscale.com/download" target="_blank" rel="noopener">Windows / Mac</a>. Needs Android 8+ / iOS 15+.</p>
+    <b>On a PC:</b>
+    <ol><li>Open <a href="https://tailscale.com/download" target="_blank" rel="noopener">tailscale.com/download</a>, pick Windows, run the installer.</li>
+    <li>Or, in PowerShell: <pre>winget install Tailscale.Tailscale</pre></li></ol>
+    <b>Then:</b>
+    <ol><li>Host and friends sign in to the <b>same Tailscale account</b>, or the host invites friends to their network from the Tailscale admin page (Users &rarr; Invite).</li>
+    <li>Once the host PC is connected, a <b>Tailscale</b> address appears in the host section above within a few seconds, with its own QR code - scan it on the phone.</li></ol>
+  </details>
+  <details><summary>ZeroTier</summary>
+    <div class="qrrow" data-qr='[["Android","https://play.google.com/store/apps/details?id=com.zerotier.one"],["iPhone / iPad","https://apps.apple.com/app/id1084101492"],["PC / Mac / all","https://www.zerotier.com/download/"]]'></div>
+    <p class="mut">Link not working? Search <b>ZeroTier One</b> in the Play Store / App Store (by ZeroTier, Inc.), or see <a href="https://docs.zerotier.com/faq/android-install/" target="_blank" rel="noopener">the Android install page</a> (has a direct APK) and the <a href="https://www.zerotier.com/download/" target="_blank" rel="noopener">download page</a>. Needs iOS 12+.</p>
+    <b>On a PC:</b>
+    <ol><li>Open <a href="https://www.zerotier.com/download/" target="_blank" rel="noopener">zerotier.com/download</a>, pick Windows, run the installer.</li>
+    <li>Or, in PowerShell: <pre>winget install ZeroTier.ZeroTierOne</pre></li></ol>
+    <b>Then:</b>
+    <ol><li>The host makes a free account at <a href="https://my.zerotier.com" target="_blank" rel="noopener">my.zerotier.com</a>, creates a network and shares its 16-character Network ID.</li>
+    <li>Everyone joins that Network ID in their ZeroTier app; the host ticks "Auth" for each person in the web page.</li>
+    <li>Once the host PC has joined, a <b>ZeroTier</b> address appears in the host section above within a few seconds - scan its QR code on the phone.</li></ol>
+  </details>
+  <p class="mut">Phones just need a browser after that - no Watch Party app. If a link doesn't open the right page, search the app name in your phone's store.</p>
+</section>
+
+<section class="card" id="guest" hidden>
+  <h2>A video is being shared here</h2>
+  <a class="btn" href="/watch.html">Join the watch party</a>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let st={}, addrKey='', plKey='';
+const KINDS={virtual:'Virtual adapter (WSL / VM)',hamachi:'Hamachi',tailscale:'Tailscale (phones & PCs on Tailscale)',zerotier:'ZeroTier (phones & PCs on ZeroTier)',lan:'Same Wi-Fi / LAN'};
+function renderAddrs(items){
+  const box=$('addrs'); box.innerHTML='';
+  const real=items.filter(i=>i.kind!=='virtual'), virt=items.filter(i=>i.kind==='virtual');
+  for(const it of real){
+    const url='http://'+it.ip+':'+st.port+'/watch.html';
+    const q=qrcode(0,'M'); q.addData(url); q.make();
+    const d=document.createElement('div'); d.className='addr';
+    const tag = it.kind==='lan' ? (it.primary ? ' <b style="color:var(--ok)">- use this for phones on your Wi-Fi</b>' : ' <span class="mut">(probably not your Wi-Fi)</span>') : '';
+    d.innerHTML='<img alt="QR code" src="'+q.createDataURL(4,0)+'"><div><small>'+(KINDS[it.kind]||it.kind)+tag+'</small>PC app: enter <code>'+it.ip+':'+st.port+'</code><small>Phone: scan the code, or open<br>'+url+'</small></div>';
+    box.appendChild(d);
+  }
+  if(virt.length) box.insertAdjacentHTML('beforeend','<div class="mut">Ignore these (virtual adapters, phones can\'t reach them): '+virt.map(v=>v.ip+' ('+esc(v.if)+')').join(', ')+'</div>');
+  if(!real.length) box.innerHTML+='<span class="mut">No network address found</span>';
+}
+async function refresh(){
+  try{st=await (await fetch('/api/status')).json();}catch(e){return}
+  if(!st.local){ $('host').hidden=$('join').hidden=$('apps').hidden=true; $('guest').hidden=false; return; }
+  $('share').hidden = false;   // addresses are known before a video is picked
+  $('openplayer').hidden = !st.name;
+  const items = st.addrs||[];
+  const key = JSON.stringify(items)+st.port;
+  if(key!==addrKey){ addrKey=key; renderAddrs(items); }
+  $('hamawarn').hidden = items.some(a=>a.kind==='hamachi');
+  $('viewers').textContent = st.viewers+' watching now';
+  $('addsub').hidden = !(st.canSubs && st.name);
+  if(st.canSubs && st.name){ fetch('/api/subs').then(r=>r.json()).then(l=>{ $('subs').textContent = l.length ? 'Subtitles: '+l.map(s=>s.label).join(', ') : 'Subtitles: none found yet (a .srt/.vtt next to the video is picked up automatically)'; }); }
+  const cv=st.conv||{};
+  $('prog').hidden = !(cv.running || cv.err);
+  $('pbar').hidden = !cv.running;
+  $('cstop').hidden = !cv.running;
+  $('ptxt').textContent = cv.running ? 'Converting '+cv.name+'… '+(cv.percent||0).toFixed(0)+'%' : (cv.err||'');
+  $('now').textContent = st.name ? 'Now playing'+(st.live?' (converting live)':'')+': '+st.name : 'No video selected yet.';
+  const pv=await (await fetch('/api/playlist')).json(); renderPlaylist(pv);
+}
+let lastPv=null;
+function renderPlaylist(pv){
+  lastPv=pv; PL.init(pv.items,pv.cur);
+  const key=JSON.stringify(pv)+JSON.stringify([...PL.collapsed]); if(key===plKey) return; plKey=key;
+  const ol=$('pl'); ol.innerHTML='';
+  let n=0; const numOf=new Map(pv.items.map((it,i)=>[it.id,i+1]));
+  for(const r of PL.rows(pv.items)){
+    const li=document.createElement('li'); li.style.marginLeft=(r.depth*16)+'px';
+    if(r.hdr){
+      li.className='grp';
+      const nm=document.createElement('span'); nm.className='nm'; nm.title=PL.pretty(r.path);
+      nm.innerHTML=(r.collapsed?'▸ ':'▾ ')+esc(r.label)+' <small>('+r.count+')</small>';
+      nm.onclick=()=>{ PL.toggle(r.path); plKey=''; renderPlaylist(lastPv); };
+      li.appendChild(nm);
+      const x=document.createElement('button'); x.className='alt'; x.textContent='✕'; x.title='Remove this folder from the list'; x.onclick=()=>act('/api/playlist/remove',{group:r.path}); li.appendChild(x);
+      ol.appendChild(li); continue;
+    }
+    const it=r.item;
+    if(it.id===pv.cur) li.className='cur';
+    const nm=document.createElement('span'); nm.className='nm'; nm.textContent=numOf.get(it.id)+'. '+it.name; nm.title='Play this now'; nm.onclick=()=>act('/api/play',{id:it.id});
+    li.appendChild(nm);
+    if(it.converting) li.insertAdjacentHTML('beforeend','<span class="b">converting…</span>');
+    else if(it.needsConv) { li.insertAdjacentHTML('beforeend','<span class="b" title="'+esc(it.reasons.join(', '))+'">live conversion</span>'); const c=document.createElement('button'); c.className='alt'; c.textContent='Convert to file'; c.onclick=()=>act('/api/item/convert',{id:it.id}); li.appendChild(c); }
+    const x=document.createElement('button'); x.className='alt'; x.textContent='✕'; x.title='Remove from list'; x.onclick=()=>act('/api/playlist/remove',{id:it.id}); li.appendChild(x);
+    ol.appendChild(li);
+  }
+  $('clear').hidden=!pv.items.length;
+}
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const act=async(u,body)=>{ $('err').textContent=''; const r=await fetch(u,{method:'POST',body:body?JSON.stringify(body):undefined}); if(!r.ok) $('err').textContent=await r.text(); refresh(); };
+$('fwfix').onclick=async()=>{ $('fwmsg').textContent='Waiting for the Windows admin prompt...'; const r=await fetch('/api/firewall',{method:'POST'}); $('fwmsg').textContent = r.ok ? 'Done. Try the phone again.' : await r.text(); };
+$('pickdir').onclick=()=>act('/api/pick/folder');
+$('addsub').onclick=()=>act('/api/subs/pick');
+$('clear').onclick=()=>act('/api/playlist/remove',{id:0});
+$('cstop').onclick=()=>act('/api/convert/cancel');
+$('go').onclick=()=>{
+  let a=$('addr').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,'');
+  if(!a) return;
+  if(!a.includes(':')) a+=':8765';
+  try{localStorage.addr=a}catch(e){}
+  location.href='http://'+a+'/watch.html';
+};
+$('addr').onkeydown=e=>{if(e.key==='Enter')$('go').click()};
+try{$('addr').value=localStorage.addr||''}catch(e){}
+document.querySelectorAll('.qrrow').forEach(row=>{
+  for(const [label,url] of JSON.parse(row.dataset.qr)){
+    const q=qrcode(0,'M'); q.addData(url); q.make();
+    const f=document.createElement('figure'); f.innerHTML='<img alt="QR code for '+label+'" src="'+q.createDataURL(4,0)+'"><a href="'+url+'" target="_blank" rel="noopener">'+label+' - open link</a>'; row.appendChild(f);
+  }
+});
+refresh(); setInterval(refresh,1000);
+</script></body></html>

@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watch Party</title>
+<style>
+:root{--bg:#0e0f12;--card:#1d2026;--fg:#e8eaed;--mut:#9aa0a6;--acc:#7c9cff;--ok:#4cc38a;--warn:#f2b84b}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,Segoe UI,sans-serif;display:flex;flex-direction:column}
+video{flex:1;min-height:0;width:100%;background:#000}
+#bar{padding:10px 16px;background:var(--card);display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+#status{font-weight:600}.mut{color:var(--mut)}
+.chip{display:inline-block;padding:1px 10px;border-radius:99px;background:#2a2f38;margin-right:6px;font-size:13px}
+.chip.ok{border:1px solid var(--ok)}.chip.wait{border:1px solid var(--warn);color:var(--warn)}
+progress{width:160px;height:8px}
+#ctl{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap}#ctl input[type=number]{width:70px;padding:3px 6px}
+#skip{padding:4px 10px;background:var(--warn)}
+#bar button{padding:4px 10px;font-weight:600}
+#ov{position:fixed;inset:0;background:rgba(10,11,14,.94);display:grid;place-items:center;padding:16px;z-index:5}
+#ov.hide{display:none}
+#panel{background:var(--card);border-radius:12px;padding:24px;max-width:480px;width:100%;display:grid;gap:12px}
+#panel h2{margin:0}
+label{display:block}input[type=text],input[type=number]{background:#12141a;color:var(--fg);border:1px solid #333a45;border-radius:8px;padding:8px;font:inherit;width:100%}
+input[type=number]{width:90px}
+button{background:var(--acc);color:#0b1020;border:0;border-radius:8px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer}
+#warn{background:#5a3b00;color:#ffd699;padding:8px 16px;font-weight:600}
+#tap{position:fixed;left:50%;top:40%;transform:translateX(-50%);z-index:4}
+@media (max-width:640px){
+  body{font-size:16px}#bar{padding:8px 12px;gap:6px 12px}
+  #ctl{gap:8px 12px;width:100%}#ctl input[type=number],select{font-size:16px;padding:6px 8px}
+  #ctl label{min-height:32px;display:inline-flex;align-items:center;gap:6px}
+  #bar button{padding:8px 14px}progress{width:100%}
+  #panel{padding:18px}input[type=text],input[type=number]{font-size:16px}
+}
+html,body{height:100dvh}
+[hidden]{display:none!important}
+#inv{background:#2f3540;color:var(--fg)}
+#invbox{position:fixed;inset:0;background:rgba(10,11,14,.9);z-index:6;display:grid;place-items:center;padding:16px}
+#invcard{background:var(--card);border-radius:12px;padding:20px;max-width:420px;width:100%;display:grid;gap:14px;text-align:center}
+#invcard img{width:200px;height:200px;background:#fff;padding:8px;border-radius:8px;justify-self:center;image-rendering:pixelated}
+#title{font-weight:400}
+#plbox{position:fixed;inset:0;background:rgba(10,11,14,.9);z-index:6;display:grid;place-items:center;padding:16px}
+#plcard{background:var(--card);border-radius:12px;padding:18px;max-width:600px;width:100%;max-height:85vh;overflow:auto;display:grid;gap:12px}
+#pllist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+#pllist li{background:#12141a;border-radius:8px;padding:10px 12px;cursor:pointer;display:flex;gap:8px;align-items:center}
+#pllist li.grp{background:transparent;font-weight:600;color:var(--mut);padding:6px 4px}#pllist li:hover{background:#1a1e26}#pllist li.cur{outline:2px solid var(--acc)}#pllist .n{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#pllist .b{font-size:12px;color:var(--warn)}
+</style><script src="/qrcode.js"></script><script src="/pl.js"></script></head><body>
+<video id="v" controls preload="auto" playsinline></video>
+<div id="bar">
+  <span id="status">Connecting…</span>
+  <span id="title" class="mut"></span>
+  <span id="who"></span>
+  <button id="skip" hidden>Skip waiting</button>
+  <button id="prev" hidden title="Previous video">⏮</button>
+  <button id="nextb" hidden title="Next video">⏭</button>
+  <button id="plbtn" hidden>Playlist</button>
+  <button id="inv">Invite (QR)</button>
+  <div id="ctl">
+    <label>Buffer <input type="number" id="aheadLive" min="0" max="3600"> s</label>
+    <label><input type="checkbox" id="wholeLive"> Whole file</label>
+    <label><input type="checkbox" id="nowaitLive"> Don't wait for me</label>
+    <label id="subWrap" hidden>Subtitles <select id="subSel"><option value="-1">Off</option></select>
+      <select id="subSize" title="Subtitle size"><option value="80">S</option><option value="100" selected>M</option><option value="140">L</option><option value="200">XL</option></select></label>
+    <span id="buf" class="mut"></span>
+    <progress id="dl" max="1" value="0" hidden></progress>
+  </div>
+</div>
+<div id="plbox" hidden><div id="plcard"><b>Playlist</b> <span class="mut">- click a video to switch everyone to it</span>
+  <ol id="pllist"></ol>
+  <label><input type="checkbox" id="autoNext"> Play the next video automatically when one ends</label>
+  <button id="plclose">Close</button></div></div>
+<div id="invbox" hidden><div id="invcard"><b>Invite someone</b><div id="invlist"></div><button id="invclose">Close</button></div></div>
+<div id="warn" hidden></div>
+<button id="tap" hidden>Click to resume playback</button>
+
+<div id="ov"><div id="panel">
+  <h2>Watch Party</h2>
+  <div class="mut" id="fileinfo">Loading…</div>
+  <label>Your name <input type="text" id="name" maxlength="20"></label>
+  <label>Buffer before playing: <input type="number" id="ahead" min="0" max="3600" value="10"> seconds</label>
+  <label><input type="checkbox" id="whole"> Download the whole file first (smoothest on slow links)</label>
+  <label><input type="checkbox" id="nowait"> Don't make others wait for me</label>
+  <div class="mut">You can change all of this later from the bar under the video.</div>
+  <button id="start">Start</button>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id), v=$('v');
+const myId=Math.random().toString(36).slice(2);
+let info, cfg={}, state=null, recvAt=0, wasReady=false, sentReady=null, sentNote='', sentAt=0, started=false, failed=false;
+const mobile=matchMedia('(pointer:coarse)').matches;   // phones/tablets
+let hls=null, blobURL=null, dlRun=0, lastAhead=0, lastGrowth=0, note='';
+
+const save=(k,x)=>{try{localStorage['wp_'+k]=x}catch(e){}}, load=(k,d)=>{try{return localStorage['wp_'+k]??d}catch(e){return d}};
+let clockOff=0, rtt=0;                                  // serverTime ≈ Date.now()+clockOff
+const srvNow=()=>Date.now()+clockOff;
+const post=o=>fetch('/api/cmd',{method:'POST',body:JSON.stringify({id:myId,t:Math.round(srvNow()),...o})}).catch(()=>{});
+async function syncClock(){                              // keep the lowest-RTT sample: least queueing noise
+  let best=null;
+  for(let i=0;i<8;i++){
+    const t0=performance.now(), w0=Date.now();
+    try{ const s=+await (await fetch('/api/time',{cache:'no-store'})).text(); const r=performance.now()-t0;
+      if(!best||r<best.r) best={r,off:s-(w0+r/2)}; }catch(e){}
+    await new Promise(r=>setTimeout(r,120));
+  }
+  if(best){clockOff=best.off; rtt=best.r;}
+}
+const fmt=s=>{s=Math.max(0,s|0);return (s/60|0)+':'+String(s%60).padStart(2,'0')};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+(async()=>{
+  info=await (await fetch('/api/status')).json();
+  $('fileinfo').textContent = info.name ? info.name+'  ('+(info.size/1048576).toFixed(0)+' MB)' : 'The host has not picked a video yet - this page will update.';
+  $('name').value=load('name','');
+  $('ahead').value=load('ahead','10');
+  $('whole').checked=load('whole','0')==='1' && !info.live && !mobile;
+  if(info.live){ $('whole').disabled=$('wholeLive').disabled=true; $('whole').checked=false;
+    $('fileinfo').textContent+='  -  converting live: playable now, seeking ahead waits for the converter'; }
+  if(!info.name) setInterval(async()=>{const i=await (await fetch('/api/status')).json(); if(i.name) location.reload()},2000);
+})();
+
+if(mobile){ for(const id of ['whole','wholeLive']){ $(id).disabled=true; $(id).closest('label').hidden=true; } }   // whole-file download can exhaust a phone's memory
+let wake=null;
+async function keepAwake(){ try{ if('wakeLock' in navigator && document.visibilityState==='visible') wake=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(started) keepAwake(); });
+$('start').onclick=()=>{
+  if(!info.name) return;
+  keepAwake();
+  cfg={name:$('name').value.trim()||'guest', ahead:Math.max(0,+$('ahead').value||0), whole:$('whole').checked, nowait:$('nowait').checked};
+  save('name',cfg.name);
+  $('ov').classList.add('hide');
+  $('aheadLive').value=cfg.ahead; $('wholeLive').checked=cfg.whole; $('nowaitLive').checked=cfg.nowait;
+  started=true;
+  syncClock(); setInterval(syncClock,60000);
+  v.addEventListener('loadedmetadata',apply);
+  setSource();
+  connect();
+  setInterval(tick,400);
+};
+
+// live controls
+$('aheadLive').onchange=()=>{cfg.ahead=Math.max(0,+$('aheadLive').value||0);save('ahead',cfg.ahead);if(hls)hls.config.maxBufferLength=Math.max(30,cfg.ahead+10)};
+$('nowaitLive').onchange=()=>{cfg.nowait=$('nowaitLive').checked};
+$('wholeLive').onchange=()=>{cfg.whole=$('wholeLive').checked;save('whole',cfg.whole?1:0);setSource()};
+$('skip').onclick=()=>post({action:'skipwait'});
+
+function streamSrc(){ if(!v.src||v.src.startsWith('blob:')||dlRun) {dlRun++; v.src='/video?f='+info.fileId;} $('dl').hidden=true; }
+function startHls(){
+  const go=()=>{
+    if(!Hls.isSupported()){ failed=true; $('status').textContent='This browser cannot play live conversions (needs MediaSource).'; return; }
+    const slow={maxTimeToFirstByteMs:180000,maxLoadTimeMs:180000,timeoutRetry:{maxNumRetry:4,retryDelayMs:0,maxRetryDelayMs:0},errorRetry:{maxNumRetry:8,retryDelayMs:1000,maxRetryDelayMs:8000}};   // a far seek can make the converter restart: be patient
+    hls=new Hls({startPosition:0, maxBufferLength:Math.max(30,cfg.ahead+10), maxMaxBufferLength:900, maxBufferSize:500e6, fragLoadPolicy:{default:slow}});
+    hls.on(Hls.Events.ERROR,(e,d)=>{ if(!d.fatal) return;
+      if(d.type===Hls.ErrorTypes.NETWORK_ERROR){ hls.startLoad(); return; }          // keep trying rather than giving up
+      if(d.type===Hls.ErrorTypes.MEDIA_ERROR){ hls.recoverMediaError(); return; }
+      failed=true; $('status').textContent='Live stream error: '+d.details; });
+    hls.loadSource('/live/index.m3u8'); hls.attachMedia(v);
+  };
+  if(window.Hls) return go();
+  const s=document.createElement('script'); s.src='/hls.min.js'; s.onload=go;
+  document.head.appendChild(s);
+}
+function setSource(){
+  if(info.live){ if(!hls) startHls(); return; }
+  if(blobURL){ if(v.src!==blobURL) v.src=blobURL; return; }
+  if(cfg.whole) downloadAll(); else streamSrc();
+}
+
+async function downloadAll(){
+  const me=++dlRun;
+  v.pause(); v.removeAttribute('src'); v.load();   // stop streaming while we fetch everything
+  const total=info.size, CH=8<<20, parts=[], t0=performance.now();
+  $('dl').hidden=false; let got=0;
+  while(got<total){
+    if(me!==dlRun) return;               // cancelled (user turned "Whole file" off)
+    try{
+      const end=Math.min(got+CH,total)-1;
+      const r=await fetch('/video?f='+info.fileId,{headers:{Range:`bytes=${got}-${end}`}});
+      if(r.status!==206) throw new Error('status '+r.status);
+      const b=await r.blob(); parts.push(b); got+=b.size;
+      $('dl').value=got/total;
+      const mbps=(got/1048576)/((performance.now()-t0)/1000);
+      note=`downloading ${(got/total*100).toFixed(0)}%`;
+      $('buf').textContent=`Downloading ${(got/total*100).toFixed(1)}%  (${mbps.toFixed(1)} MB/s)`;
+    }catch(e){ $('buf').textContent='Download error, retrying…'; await new Promise(r=>setTimeout(r,1500)); }
+  }
+  if(me!==dlRun) return;
+  $('dl').hidden=true;
+  blobURL=URL.createObjectURL(new Blob(parts,{type:info.mime}));
+  dlRun++; v.src=blobURL;
+}
+
+function connect(){
+  const es=new EventSource(`/events?id=${myId}&name=${encodeURIComponent(cfg.name)}`);
+  es.onmessage=e=>{
+    const s=JSON.parse(e.data);
+    if(s.plVer!==plVer||s.cur!==playlist.cur) loadPlaylist();
+    $('autoNext').checked=s.autoNext;
+    if(s.fileId!==info.fileId){ switchFile(); return }
+    if(switching) return;
+    state=s; recvAt=performance.now(); render(); apply();
+  };
+  es.onopen=()=>{sentReady=null};
+}
+
+// position the room is at right now: state at server send time + everything since (incl. network delay)
+let mySeek=null;   // {pos,t}: a seek I just made that the room hasn't caught up with yet
+const est=()=>state?state.pos+(state.running?Math.max(0,srvNow()-state.sent)/1000:0):0;
+
+function apply(){
+  if(!state||!v.src||v.readyState<1) return;
+  const t=est();
+  if(mySeek){ if(Math.abs(t-mySeek.pos)<1.5||performance.now()-mySeek.t>8000) mySeek=null; }
+  if(!mySeek&&!v.seeking&&isFinite(t)&&Math.abs(v.currentTime-t)>0.6) v.currentTime=Math.min(t,v.duration||t);
+  if(state.running&&v.paused) v.play().then(()=>$('tap').hidden=true).catch(()=>$('tap').hidden=false);
+  else if(!state.running&&!v.paused) v.pause();
+}
+$('tap').onclick=()=>{$('tap').hidden=true;v.play().catch(()=>{})};
+
+function bufferedAhead(){
+  const t=v.currentTime; let end=t;
+  for(let i=0;i<v.buffered.length;i++) if(v.buffered.start(i)<=t+0.2&&v.buffered.end(i)>=t) end=Math.max(end,v.buffered.end(i));
+  return {ahead:end-t, full:isFinite(v.duration)&&end>=v.duration-0.5};
+}
+
+function computeReady(){
+  if(cfg.nowait||failed) return true;
+  if(blobURL&&v.src===blobURL) { note='ready'; return v.readyState>=3; }
+  if(cfg.whole) return false;                          // note set by downloadAll
+  if(!v.src||v.readyState<3){ note='loading'; return false; }
+  const {ahead,full}=bufferedAhead(), now=performance.now(), A=cfg.ahead;
+  if(ahead>lastAhead+0.5||ahead<lastAhead-1) lastGrowth=now;   // buffer is moving (or we seeked)
+  lastAhead=ahead;
+  const stalled=now-lastGrowth>8000 && ahead>=1;        // browser stopped buffering; don't wait forever
+  note=`${ahead|0}s / ${A}s`;
+  return full||stalled||ahead>=(wasReady?Math.min(2,A):A);
+}
+
+function tick(){
+  const r=computeReady(); wasReady=r;
+  const now=performance.now();
+  if(r!==sentReady||(note!==sentNote&&now-sentAt>1000)){ sentReady=r; sentNote=note; sentAt=now; post({action:'ready',ready:r,note}); }
+  if(!cfg.whole&&v.src&&!blobURL){ $('buf').textContent=`Buffered ahead: ${fmt(bufferedAhead().ahead)}`; }
+  else if(blobURL) $('buf').textContent='Fully downloaded';
+  $('buf').textContent+=rtt?`  ·  ping ${rtt|0} ms`:'';
+  audioCheck();
+  if(state&&state.running&&!v.paused&&!v.seeking&&!mySeek&&Math.abs(v.currentTime-est())>0.4) v.currentTime=est();   // never fight a seek that is still loading
+}
+
+let playedFor=0;
+function audioCheck(){            // Chrome/Edge expose how many audio bytes were actually decoded
+  playedFor = (!v.paused&&v.readyState>=3) ? playedFor+0.4 : 0;
+  const w=$('warn'); let msg='';
+  if(v.muted||v.volume===0) msg='Your player is muted - unmute it with the speaker icon on the video.';
+  else if(playedFor>4 && 'webkitAudioDecodedByteCount' in v && v.webkitAudioDecodedByteCount===0)
+    msg='No audio is being decoded: this file\'s audio codec (likely AC3 / EAC3 / DTS) isn\'t supported by the browser. The host can fix it with:  ffmpeg -i in.mkv -c:v copy -c:a aac out.mp4  and then re-pick the new file.';
+  w.textContent=msg; w.hidden=!msg;
+}
+function render(){
+  const waiting=state.clients.filter(c=>!c.ready);
+  $('status').textContent = state.running ? '▶ Playing' : state.desired ? '⏳ Waiting for: '+waiting.map(c=>c.name+(c.note?' ('+c.note+')':'')).join(', ') : '⏸ Paused';
+  $('who').innerHTML = state.clients.map(c=>`<span class="chip ${c.ready?'ok':'wait'}" title="${esc(c.note)}">${esc(c.name)}</span>`).join('');
+  $('skip').hidden = !(state.desired&&!state.running);
+}
+
+v.addEventListener('play',()=>{ if(started&&!(state&&state.running)) post({action:'play',pos:v.currentTime}); });
+v.addEventListener('pause',()=>{ if(started&&!v.ended&&state&&state.running) post({action:'pause',pos:v.currentTime}); });
+v.addEventListener('seeking',()=>{ if(started&&state&&!switching&&Math.abs(v.currentTime-est())>0.8){ mySeek={pos:v.currentTime,t:performance.now()}; post({action:'seek',pos:v.currentTime}); } });
+v.addEventListener('ended',()=>{ if(started) post({action:'ended',fileId:info.fileId}); });
+v.addEventListener('error',()=>{ if(!v.src) return; failed=true; $('status').textContent='⚠ This browser cannot play this file (codec/container). Try Chrome/Edge, or have the host use an H.264/AAC .mp4.'; });
+
+// subtitles: the host publishes WebVTT tracks; each viewer chooses locally
+const subTracks=[]; const sizeStyle=document.createElement('style'); document.head.appendChild(sizeStyle);
+function setSubSize(p){ sizeStyle.textContent=`video::cue{font-size:${p}%}`; save('subsize',p); }
+$('subSize').value=load('subsize','100'); setSubSize($('subSize').value);
+$('subSize').onchange=()=>setSubSize($('subSize').value);
+function pickSub(){ const n=+$('subSel').value; subTracks.forEach((t,i)=>t.track.mode=(i===n?'showing':'disabled')); save('sublabel',n>=0?subTracks[n].label:''); }
+$('subSel').onchange=pickSub;
+async function pollSubs(){
+  try{
+    const l=await (await fetch('/api/subs',{cache:'no-store'})).json();
+    for(const s of l.slice(subTracks.length)){
+      const t=document.createElement('track'); t.kind='subtitles'; t.label=s.label; t.src='/sub/'+s.id+'.vtt'; v.appendChild(t);
+      t.track.mode='disabled'; subTracks.push(t);
+      const o=document.createElement('option'); o.value=subTracks.length-1; o.textContent=s.label; $('subSel').appendChild(o);
+      if(load('sublabel','')===s.label && +$('subSel').value<0){ $('subSel').value=o.value; pickSub(); }
+    }
+    $('subWrap').hidden=!subTracks.length;
+  }catch(e){}
+}
+$('start').addEventListener('click',()=>{ pollSubs(); setInterval(pollSubs,4000); });
+
+// invite: QR code(s) so a phone/friend can join this room
+$('inv').onclick=async()=>{
+  const urls=[];
+  if(['localhost','127.0.0.1'].includes(location.hostname)){      // host's own view: use the shareable addresses
+    const s=await (await fetch('/api/status')).json();
+    for(const a of (s.addrs||[]).filter(a=>a.kind!=='virtual')) urls.push({label:a.kind==='lan'?'Same Wi-Fi / LAN':a.kind[0].toUpperCase()+a.kind.slice(1),url:`http://${a.ip}:${s.port}/watch.html`});
+  } else urls.push({label:'This room',url:location.origin+'/watch.html'});
+  $('invlist').innerHTML='';
+  for(const u of urls){ const q=qrcode(0,'M'); q.addData(u.url); q.make();
+    const d=document.createElement('div'); d.innerHTML=`<img alt="QR" src="${q.createDataURL(5,0)}"><div class="mut">${u.label}<br>${u.url}</div>`; $('invlist').appendChild(d); }
+  $('invbox').hidden=false;
+};
+$('invclose').onclick=()=>{$('invbox').hidden=true};
+
+// ---- playlist ----
+let plVer=-1, playlist={items:[],cur:0,autoNext:true}, switching=false;
+async function loadPlaylist(){
+  try{ playlist=await (await fetch('/api/playlist',{cache:'no-store'})).json(); plVer=playlist.plVer; renderPlaylist(); }catch(e){}
+}
+const curIndex=()=>playlist.items.findIndex(i=>i.id===playlist.cur);
+function renderPlaylist(){
+  const items=playlist.items, many=items.length>1;
+  PL.init(items,playlist.cur);
+  $('plbtn').hidden=$('prev').hidden=$('nextb').hidden=!many;
+  const ci=curIndex(); $('prev').disabled=!playlist.prevId; $('nextb').disabled=!playlist.nextId;
+  const cur=items[ci];
+  $('title').textContent = cur ? `${ci+1}/${items.length}  ${cur.group?PL.pretty(cur.group)+' › ':''}${cur.name}` : (info&&info.name||'');
+  const ol=$('pllist'); ol.innerHTML='';
+  const numOf=new Map(items.map((it,i)=>[it.id,i+1]));
+  for(const r of PL.rows(items)){
+    const li=document.createElement('li'); li.style.marginLeft=(r.depth*14)+'px';
+    if(r.hdr){
+      li.className='grp'; li.innerHTML=`<span class="n">${r.collapsed?'▸':'▾'} ${esc(r.label)} <small>(${r.count})</small></span>`;
+      li.onclick=()=>{ PL.toggle(r.path); renderPlaylist(); }; ol.appendChild(li); continue;
+    }
+    const it=r.item; if(it.id===playlist.cur) li.className='cur';
+    li.innerHTML=`<span class="n">${numOf.get(it.id)}. ${esc(it.name)}</span>`+(it.id===playlist.cur?'<span class="b">now playing</span>':it.needsConv?'<span class="b">converts live</span>':'');
+    li.onclick=()=>{ playId(it.id); $('plbox').hidden=true; }; ol.appendChild(li);
+  }
+  const c=ol.querySelector('li.cur'); if(c) c.scrollIntoView({block:'nearest'});
+}
+function playId(id){ if(!id) return; fetch('/api/play',{method:'POST',body:JSON.stringify({id})}).then(async r=>{ if(!r.ok) alert(await r.text()); }); }
+$('prev').onclick=()=>playId(playlist.prevId);
+$('nextb').onclick=()=>playId(playlist.nextId);
+$('plbtn').onclick=()=>{ $('plbox').hidden=false; };
+$('plclose').onclick=()=>{ $('plbox').hidden=true; };
+$('autoNext').onchange=()=>post({action:'setauto',ready:$('autoNext').checked});
+
+// a new video was chosen: swap the media in place so nobody has to click "Start" again
+async function switchFile(){
+  if(switching) return; switching=true;
+  try{
+    state=null; mySeek=null; $('status').textContent='⏳ Loading the next video…';
+    dlRun++; if(hls){ hls.destroy(); hls=null; }
+    v.pause(); v.removeAttribute('src'); v.load();
+    if(blobURL){ URL.revokeObjectURL(blobURL); blobURL=null; }
+    $('dl').hidden=true; $('warn').hidden=true;
+    subTracks.forEach(t=>t.remove()); subTracks.length=0; $('subSel').length=1; $('subSel').value='-1'; $('subWrap').hidden=true;
+    info=await (await fetch('/api/status')).json();
+    wasReady=false; sentReady=null; lastAhead=0; lastGrowth=0; failed=false; playedFor=0;
+    if(info.live){ cfg.whole=false; $('wholeLive').checked=false; $('wholeLive').disabled=true; }
+    else $('wholeLive').disabled=mobile;
+    document.title=info.name||'Watch Party';
+    setSource();
+  } finally { switching=false; }
+  loadPlaylist();
+}
+</script></body></html>

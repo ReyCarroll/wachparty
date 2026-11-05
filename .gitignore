@@ -1,0 +1,4 @@
+# build outputs
+*.exe
+# ~66 MB, fetched by scripts/fetch-ffmpeg.sh (needed only for the full build)
+assets/ffmpeg.exe.gz
